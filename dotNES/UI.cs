@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
@@ -23,6 +24,18 @@ namespace dotNES
         public bool ready;
         public IRenderer _renderer;
 
+        public uint[] savestate = new uint[65535];
+        public uint[] savePPU = new uint[65535];
+        public int cycle;
+        public uint pc;
+        public uint p;
+        public uint a;
+        public uint x;
+        public uint y;
+        public uint sp;
+        CPU.CPUFlags f;
+        Emulator em;
+        
         public enum FilterMode
         {
             NearestNeighbor, Linear
@@ -286,6 +299,89 @@ namespace dotNES
         private void UI_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
         {
             e.IsInputKey = true;
+        }
+
+        private void menuItem2_Click(object sender, EventArgs e)
+        {
+            var fileContent = string.Empty;
+            var filePath = string.Empty;
+
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.InitialDirectory = @"C:\Users\t.hiller\Documents";
+                openFileDialog.Filter = "NES Roms (*.nes)|*.nes|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 2;
+                openFileDialog.RestoreDirectory = true;
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    //Get the path of specified file
+                    filePath = openFileDialog.FileName;
+                }
+            }
+
+            if(filePath == string.Empty)
+            {
+                return;
+            }
+
+            try
+            {
+                BootCartridge(filePath);
+                AllowDrop = false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                MessageBox.Show("Error loading ROM file; either corrupt or unsupported");
+            }
+        }
+
+        private void menuItem3_Click(object sender, EventArgs e)
+        {
+            for(uint i = 0; i < 65535; i++)
+            {
+                savestate[i] = emu.CPU.ReadByte(i);
+                savePPU[i] = emu.PPU.ReadByte(i);
+            }
+
+            cycle = emu.CPU.Cycle;
+            pc = emu.CPU.PC;
+            p = emu.CPU.P;
+            f = emu.CPU.F;
+            a = emu.CPU.A;
+            x = emu.CPU.X;
+            y = emu.CPU.Y;
+            sp = emu.CPU.SP;
+        }
+
+        private void menuItem4_Click(object sender, EventArgs e)
+        {
+            for (uint i = 0; i < 65535; i++)
+            {
+                emu.CPU.WriteByte(i, savestate[i]);
+                emu.PPU.WriteByte(i, savePPU[i]);
+            }
+
+            emu.CPU.Cycle = cycle;
+            emu.CPU.PC = pc;
+            emu.CPU.P = p;
+            emu.CPU.F.BreakSource = f.BreakSource;
+            emu.CPU.F.Carry = f.Carry;
+            emu.CPU.F.DecimalMode = f.DecimalMode;
+            emu.CPU.F.InterruptsDisabled = f.InterruptsDisabled;
+            emu.CPU.F.Negative = f.Negative;
+            emu.CPU.F.Overflow = f.Overflow;
+            emu.CPU.F.Zero = f.Zero;
+            emu.CPU._A = a;
+            emu.CPU._X = x;
+            emu.CPU._Y = y;
+            emu.CPU._SP = sp;
+        }
+
+        private void menuItem5_Click(object sender, EventArgs e)
+        {
+            emu.Controller.SetKey(NES001Controller.ControllerKeys.A, Keys.F);
         }
     }
 }
